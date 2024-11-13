@@ -1,7 +1,9 @@
 .DS_Store
 Manim_files/manimanims/animations/media/Tex
 Manim_files/manimanims/animations/media/videos/800p60/partial_movie_files
+Manim_files/manimanims/animations/media/videos/partial_movie_files
 Manim_files/manimanims/images/media/Tex/
 Manim_files/manimanims/images/media/texts/
 Manim_files/manimanims/animations/media/texts/
+testing_functionality.py
 *.pyc
