@@ -6,24 +6,20 @@ project in the most recent version of both Python and Manim at the time, and
 I'm not ready for the possible problems that could come from this change.
 """
 from __future__ import annotations
-from typing import Literal, Hashable
+from typing import Literal, Hashable, Any
+from copy import copy
 
 from manim import config, tempconfig
 from manim.animation.creation import Create
-from manim.mobject.graph import DiGraph, Graph
-from manim.scene.scene import  Scene
 from manim.constants import DEFAULT_FONT_SIZE, ITALIC, SMALL_BUFF
-from manim.mobject.mobject import Mobject
+from manim.mobject.graph import DiGraph, Graph
 from manim.mobject.geometry.line import Line
-from manim.mobject.geometry.arc import Dot, LabeledDot
+from manim.mobject.geometry.arc import Dot
 from manim.mobject.text.text_mobject import Text
-from manim.mobject.text.tex_mobject import MathTex
+from manim.scene.scene import Scene
 from manim.utils.color import ManimColor, RED, BLUE, GREEN
 
-from .my_configurations import graph_configuration as gc
-
-from typing import Any
-from copy import copy
+from . import my_configurations as gc
 
 
 type EdgeList = list[tuple[int, int]]
@@ -34,6 +30,7 @@ type wAdj = list[list[tuple[int, int]]]
 The following class is a copy, except for the weight_config["color"] part, of
 the manim-weighted-line module, which isn't usable in this version of Manim
 """
+
 class WeightedLine(Line):
     """A line to display weighted edges in a network graph.
 
@@ -81,7 +78,7 @@ class WeightedLine(Line):
             self.weight_config.update(weight_config)
 
         self.bg_config = {
-            "color": config.background_color,
+            "color": config.background_color, # This is mine
             "opacity": 1,
         }
         if bg_config:
@@ -118,13 +115,13 @@ class GraphScene(Scene):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        vertices = [i for i in range(5)]
+        vertices = [i+1 for i in range(5)]
         edges=[
-            [1,2,3],
-            [0,2,4],
-            [0,1,3],
-            [0,2],
-            [1]
+            [2,3,4],
+            [1,3,5],
+            [1,2,4],
+            [1,3],
+            [2]
         ]
 
         self.g1 = myGraph(
@@ -133,7 +130,7 @@ class GraphScene(Scene):
         )
 
         edges = [
-            [(j, (j+1)**2 if i < j else (i+1)**2) for j in edges[i]] for i in range(len(edges))
+            [(j, (j+1)**2 if i < j else (i+1)**2) for j in edges[i-1]] for i in vertices
         ]
 
         self.wg1 = myGraph(
@@ -150,11 +147,13 @@ class GraphScene(Scene):
 
     def construct(self):
         self.play(Create(self.g1))
-        self.algorithm(0)
+        self.algorithm(1)
         self.wait(1)
     
+
     def algorithm(self, v):
         raise NotImplementedError("Should be done in subclasses")
+
 
     def e_act(
         self,
@@ -177,7 +176,8 @@ class GraphScene(Scene):
         else:
             self.play(Create(edge)) # Del vèrtex v a l'u
         graph.edges[e] = edge
-    
+
+
     def v_act(
         self, v: int, graph: myGraph | myDiGraph, colour: ManimColor
     ):
@@ -194,92 +194,102 @@ class GraphScene(Scene):
 
 
 class myGraph(Graph):
-    def __init__(self, *args, vertices, edges: Adj | wAdj, **kwargs):
-        self.args = args
-        self.kwargs = copy(kwargs)
-        self.gc = copy(kwargs)
-        for key in gc.keys():
-            if isinstance(gc[key], dict):
-                self.gc[key] = self.gc.get(key, {})
-                self.gc[key].update(gc[key])
-            else:
-                self.gc[key] = gc[key]
+    def __init__(
+            self, 
+            vertices, 
+            edges, 
+            labels = gc.labels, 
+            label_fill_color = gc.label_fill_colour, 
+            layout = gc.layout, 
+            layout_scale = gc.layout_scale,
+            layout_config = gc.layout_config, 
+            vertex_type = gc.vertex_type, 
+            vertex_config = gc.vertex_config, 
+            vertex_mobjects = {}, 
+            edge_type = gc.edge_type,
+            partitions = gc.partitions, 
+            root_vertex = gc.root_vertex, 
+            edge_config = {}
+        ):
+        # Adjacency list
+        self.adj = edges
 
-        """
-        The next section of code manages the edges and vertices.
-        """
-        self.gc["vertices"] = [v+1 for v in vertices]
-        new_edges = edge_list(edges)
-        self.gc["edges"] = new_edges[0]
+        # Edge admin
+        edges, weights = edge_list(edges)
 
-        """
-        Manim's base class for graphs, GenericGraph, in the case of specific
-        configurations for the edges, uses that specific configuration and
-        foregoes the general one, which isn't how it's done in this project.
-        The next section of the code copies the general configuration into
-        each edge's specific one. In the case of weighted edges, it adds their
-        weight as a specific parameter. 
-        """
-        if "edge_config" in self.gc.keys():
-            my_default_edge_config = {
-                k: v
-                for k, v in self.gc["edge_config"].items()
-                if not isinstance(k, tuple)
-            }
-        else:
-            my_default_edge_config: dict = {}
-        my_edge_config = {e: copy(my_default_edge_config) for e in self.gc["edges"]}
+        # Edge configuration update
+        econfig = copy(gc.edge_config)
+        econfig.update(edge_config)
 
-        for e in self.gc["edges"]:
-            if e in self.gc["edge_config"].keys():
-                my_edge_config.update(self.gc["edge_config"][e])
-        self.gc["edge_config"] = copy(my_edge_config)
+        default_econfig = {k: v for k,v in econfig.items() if not isinstance(k, tuple)}
+        edge_config = {k: copy(default_econfig) for k in edges}
+        for k in edges:
+            if k in econfig:
+                edge_config.update(econfig[k])
+        if weights:
+            edge_type = WeightedLine
+            for k in edges:
+                edge_config[k]["weight"] = weights[k]
 
-        if new_edges[1]:
-            self.gc["edge_type"] = WeightedLine
-            for key in new_edges[1].keys():
-                self.gc["edge_config"][key].update(new_edges[1][key])
-        
-        if "vertex_config" in self.gc.keys():
-            my_default_vertex_config = {
-                k: v for k, v in self.gc["vertex_config"].items() if k not in vertices
-            }
-        else:
-            my_default_vertex_config = {}
-        my_vertex_config = {
-            v: copy(my_default_vertex_config) for v in vertices
+        # Vertex configuration update
+        vconfig = copy(gc.vertex_config)
+        vconfig.update(vertex_config)
+
+        default_vconfig = {k: v for k, v in vconfig.items() if k not in vertices}
+        vertex_config = {k: copy(default_vconfig) for k in vertices}
+
+        # For subgraph and other functions
+        self.gc = {
+            "vertices": vertices, 
+            "edges": edges, 
+            "labels": labels, 
+            "label_fill_color": label_fill_color, 
+            "layout": layout, 
+            "layout_scale": layout_scale,
+            "layout_config": layout_config, 
+            "vertex_type": vertex_type, 
+            "vertex_config": vertex_config, 
+            "vertex_mobjects": vertex_mobjects, 
+            "edge_type": edge_type,
+            "partitions": partitions, 
+            "root_vertex": root_vertex, 
+            "edge_config": edge_config
         }
-        for v in self.gc["vertices"]:
-            if v in self.gc["vertex_config"].keys():
-                my_vertex_config.update(self.gc["vertex_config"])
 
-        self.gc["edge_type"] = self.gc.get("edge_type", Line)
-        self.gc["vertex_type"] = self.gc.get("vertex_type", Dot)
-        
-        if "labels" in self.gc.keys() and self.gc["vertex_type"] == Dot:
-            self.gc["vertex_type"] = LabeledDot
+        edge_config.update(econfig)
+        vertex_config.update(vconfig)
 
-        super().__init__(*args, **self.gc)
-        self.gc.pop("vertices")
-        self.gc.pop("edges")
-        self.myvertices = vertices
-        self.myedges = edges
-    
+        super().__init__(
+            vertices, 
+            edges, 
+            labels, 
+            label_fill_color, 
+            layout, 
+            layout_scale, 
+            layout_config, 
+            vertex_type, 
+            vertex_config, 
+            vertex_mobjects, 
+            edge_type, 
+            partitions, 
+            root_vertex, 
+            edge_config
+        )
+
+
     def subgraph(self, vertices=list[int]) -> myGraph:
         """Returns a subgraph with specified vertices"""
         outgraph=self.__class__(
-            *self.args, 
-            vertices=self.myvertices, 
-            edges=self.myedges, 
-            **self.kwargs
+            **self.gc
         )
         outgraph.remove_vertices(
-            *[v for v in outgraph.vertices if v-1 not in vertices]
+            *[v for v in outgraph.vertices if v not in vertices]
         )
         return outgraph
 
+
     def _populate_edge_dict(
-        self, edges: list[tuple[Hashable, Hashable]], edge_type: type[Mobject]
+        self, edges: list[tuple[Hashable, Hashable]], edge_type: type[Line]
     ):
         self.edges = {
             (u, v): edge_type(
@@ -292,70 +302,116 @@ class myGraph(Graph):
         }
 
 
-
 class myDiGraph(DiGraph):
-    def __init__(self, *args, vertices, edges: Adj | wAdj, **kwargs):
-        self.args = args
-        self.kwargs = copy(kwargs)
-        self.gc = copy(kwargs)
-        for key in gc.keys():
-            if isinstance(gc[key], dict):
-                self.gc[key] = self.gc.get(key, {})
-                self.gc[key].update(gc[key])
-            else:
-                self.gc[key] = gc[key]
+    def __init__(
+            self, 
+            vertices, 
+            edges, 
+            labels = gc.labels, 
+            label_fill_color = gc.label_fill_colour, 
+            layout = gc.layout, 
+            layout_scale = gc.layout_scale,
+            layout_config = gc.layout_config, 
+            vertex_type = gc.vertex_type, 
+            vertex_config = gc.vertex_config, 
+            vertex_mobjects = {}, 
+            edge_type = gc.edge_type,
+            partitions = gc.partitions, 
+            root_vertex = gc.root_vertex, 
+            edge_config = {}
+        ):
+        # Adjacency list
+        self.adj = edges
 
-        """
-        The next section of code manages the edges and vertices.
-        """
-        self.gc["vertices"] = [v+1 for v in vertices]
-        new_edges = edge_list(edges, True)
-        self.gc["edges"] = new_edges[0]
+        # Edge admin
+        edges, weights = edge_list(edges)
 
-        """
-        Manim's base class for graphs, GenericGraph, in the case of specific
-        configurations for the edges, uses that specific configuration and
-        foregoes the general one, which isn't how it's done in this project.
-        The next section of the code copies the general configuration into
-        each edge's specific one, with the exception of "tip_config", which
-        is used to determine if an edge will be directed or not, and is
-        inputted apart from the rest. In case of weighted edges, it adds their
-        weight as a specific parameter. 
-        """
-        if self.gc["edge_config"]:
-            my_default_edge_config = {
-                k: v 
-                for k, v in self.gc["edge_config"].items() 
-                if not isinstance(k, tuple)
-            }
-            my_edge_config = {k: copy(my_default_edge_config) for k in self.gc["edges"] if isinstance(k, tuple)}
-            for e in my_edge_config:
-                if e in self.gc["edge_config"].keys():
-                    my_edge_config[e].update(self.gc["edge_config"][e])
-            self.gc["edge_config"] = my_edge_config
+        # Edge configuration update
+        econfig = copy(gc.edge_config)
+        econfig.update(edge_config)
 
-        if new_edges[1]:
-            self.gc["edge_type"] = WeightedLine
-            for key in new_edges[1].keys():
-                self.gc["edge_config"][key] = self.gc["edge_config"].get(key, {})
-                self.gc["edge_config"][key].update(new_edges[1][key])
+        default_econfig = {k: v for k,v in econfig.items() if not isinstance(k, tuple)}
+        edge_config = {k: copy(default_econfig) for k in edges}
+        for k in edges:
+            if k in econfig:
+                edge_config.update(econfig[k])
+        if weights:
+            edge_type = WeightedLine
+            for k in edges:
+                edge_config[k]["weight"] = weights[k]
 
-        super().__init__(*args, **self.gc)
-        self.gc.pop("vertices")
-        self.gc.pop("edges")
-        self.myvertices = vertices
-        self.myedges = edges
-    
-    def subgraph(self, vertices=list[int]) -> myDiGraph:
+        # Vertex configuration update
+        vconfig = copy(gc.vertex_config)
+        vconfig.update(vertex_config)
+
+        default_vconfig = {k: v for k, v in vconfig.items() if k not in vertices}
+        vertex_config = {k: copy(default_vconfig) for k in vertices}
+
+        # For subgraph and other functions
+        self.gc = {
+            "vertices": vertices, 
+            "edges": edges, 
+            "labels": labels, 
+            "label_fill_color": label_fill_color, 
+            "layout": layout, 
+            "layout_scale": layout_scale,
+            "layout_config": layout_config, 
+            "vertex_type": vertex_type, 
+            "vertex_config": vertex_config, 
+            "vertex_mobjects": vertex_mobjects, 
+            "edge_type": edge_type,
+            "partitions": partitions, 
+            "root_vertex": root_vertex, 
+            "edge_config": edge_config
+        }
+
+        edge_config.update(econfig)
+        vertex_config.update(vconfig)
+
+        super().__init__(
+            vertices, 
+            edges, 
+            labels, 
+            label_fill_color, 
+            layout, 
+            layout_scale, 
+            layout_config, 
+            vertex_type, 
+            vertex_config, 
+            vertex_mobjects, 
+            edge_type, 
+            partitions, 
+            root_vertex, 
+            edge_config
+        )
+
+
+    def subgraph(self, vertices=list[int]) -> myGraph:
         """Returns a subgraph with specified vertices"""
         outgraph=self.__class__(
-            *self.args, vertices=self.myvertices, edges=self.myedges, **self.kwargs
+            **self.gc
         )
         outgraph.remove_vertices(
-            *[v for v in outgraph.vertices if v-1 not in vertices]
+            *[v for v in outgraph.vertices if v not in vertices]
         )
         return outgraph
 
+
+    def _populate_edge_dict(
+        self, edges: list[tuple[Hashable, Hashable]], edge_type: type[Line]
+    ):
+        self.edges = {
+            (u, v): edge_type(
+                self[u],
+                self[v],
+                z_index=-2,
+                **self._edge_config[(u, v)],
+            )
+            for (u, v) in edges
+        }
+
+        for (u, v), edge in self.edges.items():
+            edge.add_tip(**self._tip_config[(u, v)])
 
 
 def render_all(
@@ -382,24 +438,36 @@ def edge_list(
     a dictionary with the corresponding tuples associated to their weight to be
     put into the edge_config of a GenericGraph subclass,
     """
+    if not adj:
+        return ([], {})
     if type(adj[0][0]) == int:
         if directed:
-            edges = [(i+1, v+1) for i in range(len(adj)) for v in adj[i]]
+            edges = [(i+1, v) for i in range(len(adj)) for v in adj[i]]
         else:
             # Important: This notation permits introducing an adjacency list as
             # if it was expressing a directed graph, but introducing one 
             # expressing an undirected one also works, meaning omiting the
             # vertex in the adjacency from the larger numbered vertex-
-            edges = [(i+1, v+1) for i in range(len(adj)) for v in adj[i] if i <= v]
+            edges = [(i+1, v) for i in range(len(adj)) for v in adj[i] if i <= v]
         return (edges, {})
     if directed:
         edges = [
-            ((i+1, v[0]+1), v[1]) for i in range(len(adj)) for v in adj[i]
+            ((i+1, v[0]), v[1]) for i in range(len(adj)) for v in adj[i]
         ]
     else:
         edges = [
-            ((i+1, v[0]+1), v[1]) 
+            ((i+1, v[0]), v[1]) 
             for i in range(len(adj)) 
             for v in adj[i] if i <= v[0]
         ]
-    return ([e[0] for e in edges], {e[0]: {"weight":e[1]} for e in edges})
+    return ([e[0] for e in edges], {e[0]: e[1] for e in edges})
+
+
+def dict_update(dct: dict, update: dict):
+    for key in update.keys():
+        if update[key]:
+            if isinstance(update[key], dict):
+                dct[key] = dct.get(key, {})
+                dict_update(dct[key], update[key])
+            else:
+                dct[key] = update[key]
