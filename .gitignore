@@ -6,3 +6,4 @@ Manim_files/manimanims/animations/media/texts/
 testing_functionality.py
 *.pyc
 **/partial_movie_files
+.python-version
