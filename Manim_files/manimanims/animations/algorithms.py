@@ -6,68 +6,103 @@ sys.path.append(
 )
 
 from extra_code.graph_functions import (
-    myGraph, myDiGraph, GraphScene, render_all, WeightedLine
+    myGraph, myDiGraph, GraphScene, render_all
 )
-from extra_code.my_configurations import graph_configuration
 from manim import *
-from math import sin, cos, pi, inf
+from math import inf
 from queue import PriorityQueue
-from copy import copy
 
 class DFS(GraphScene):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.seen = [False] * len(self.g1.myvertices)
+        self.seen = [False] * len(self.g1.vertices)
+        self.tree = myGraph(vertices=[1], edges=[], layout="tree", root_vertex=1)
+        self.g1.move_to([-3,0,0])
+        self.tree.move_to([3,0,0])
+    
+    def construct(self):
+        self.play(Create(self.g1))#, Create(self.tree)) 
+        # ^ No funciona, peta l'animació d'arestes de g1, per què? 
+        # Ara faré la resta (BFS, etc. ) amb les llistes
+        self.algorithm(1)
+        self.wait(1)
 
     def algorithm(self, v):
-        self.seen[v] = True
-        self.v_act(v+1, self.g1, self.v_processing_colour)
+        self.seen[v-1] = True
+        self.v_act(v, self.g1, self.v_processing_colour)
 
-        for u in self.g1.myedges[v]:
-            if self.seen[u]:
+        for u in self.g1.adj[v-1]:
+            if self.seen[u-1]:
                 continue
-            edge = (v+1, u+1)
+            edge = (v, u)
             self.wait()
             self.e_act(edge, self.g1, self.e_visited_colour)
-            self.v_act(v+1, self.g1, self.v_visited_colour)
+            self.v_act(v, self.g1, self.v_visited_colour)
+            #self.tree.add_vertices(u)
+            #self.tree.add_edges(edge)
             self.algorithm(u)
             self.e_act(
                 edge, self.g1, self.e_processed_colour, True
             )
-            self.v_act(v+1, self.g1, self.v_processing_colour)
-        self.v_act(v+1, self.g1, self.v_processed_colour)
+            self.v_act(v, self.g1, self.v_processing_colour)
+        self.v_act(v, self.g1, self.v_processed_colour)
     
 
 class BFS(GraphScene):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.seen = [False] * len(self.g1.myvertices)
+        self.seen = [False] * len(self.g1.vertices)
+        #self.seen_mobject = always_redraw(lambda: Tex(f"{self.seen}").move_to([2.5,-0.5,0]))
         self.q = []
+        #self.q_mobject = always_redraw(lambda: Tex(f"{self.q}").move_to([2.5,0.5,0]))
+        self.table = always_redraw(
+            lambda: Table(
+                [["T" if boolean else "F" for boolean in self.seen]],
+                row_labels=[Tex("Visited").scale(0.5)],
+                col_labels=[Tex(i).scale(0.5) for i in self.g1.vertices],
+                include_outer_lines=True,
+                element_to_mobject=
+                ).move_to([1,0,0])
+        )
+        self.g1.move_to([-2.5,0,0])
+    
+    def construct(self):
+        self.play(Create(self.g1), Create(self.table))
+        self.algorithm(1)
+        self.wait(1)
 
     def algorithm(self, v):
         self.q.append(v)
-        self.seen[v] = True
+        self.seen[v-1] = True
 
         while self.q:
             a = self.q.pop(0)
-            self.v_act(a+1, self.g1, self.v_processing_colour)
-            for b in self.g1.myedges[a]:
-                if self.seen[b]:
-                    continue
-                edge = (a+1, b+1)
+            self.v_act(a, self.g1, self.v_processing_colour)
+            for b in self.g1.adj[a-1]:
+                if self.seen[b-1]: 
+                    continue 
+                edge = (a, b)
                 self.e_act(edge, self.g1, self.e_visited_colour)
                 self.wait(0.5)
-                self.v_act(b+1, self.g1, self.v_visited_colour)
-                self.seen[b] = True
+                self.v_act(b, self.g1, self.v_visited_colour)
+                self.seen[b-1] = True
                 self.q.append(b)
             self.wait(0.5)
-            self.v_act(a+1, self.g1, self.v_processed_colour)
+            self.v_act(a, self.g1, self.v_processed_colour)
+            print(self.q)
 
 
 class BellmanFord(GraphScene):
+    scene_temp_config = {
+        "frame_width": 10,
+        "frame_height": 8,
+        "pixel_width": 1000,
+        "pixel_height": 800
+    }
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.g1 = self.wg1
+        self.g1.move_to([-2, 0, 0])
     
     def algorithm(self, v):
         # MUST ALSO PUT THE LIST OF DISTANCES, MAYBE UNDER? SHOULD BE SEEN, SO ERPVQPUWEBVUQIWBEPNQUWECRQPWCQUINECQONWUEROQNWCRPOQW
@@ -83,6 +118,7 @@ class BellmanFord(GraphScene):
                 a, b, w = e
                 edge = (a+1,b+1)
                 self.e_act(edge, self.g1, self.e_processing_colour)
+                self.wait(0.5)
                 if dist[a] + w < dist[b]:
                     dist[b] = dist[a] + w
                     self.e_act(edge, self.g1, self.e_processed_colour)
@@ -109,29 +145,36 @@ class BellmanFord(GraphScene):
 
 
 class SPFA(GraphScene):
+    scene_temp_config = {
+        "frame_width": 10,
+        "frame_height": 8,
+        "pixel_width": 1000,
+        "pixel_height": 800
+    }
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.g1 = self.wg1
+        self.g1.move_to([-2, 0, 0])
         self.q = []
     
     def algorithm(self, v):
         # MUST ALSO PUT THE LIST OF DISTANCES, MAYBE UNDER? SHOULD BE SEEN, SO ERPVQPUWEBVUQIWBEPNQUWECRQPWCQUINECQONWUEROQNWCRPOQW
         dist = [inf] * len(self.g1.vertices)
-        dist[v] = 0
+        dist[v-1] = 0
         self.q.append(v)
 
         while self.q:
             a = self.q.pop(0)
-            self.v_act(a+1, self.g1, self.v_processing_colour)
+            self.v_act(a, self.g1, self.v_processing_colour)
 
-            for b, w in self.g1.myedges[a]:
-                e = (a+1, b+1) if a < b else (b+1,a+1)
+            for b, w in self.g1.adj[a]:
+                e = (a, b) if a < b else (b, a)
                 returning = False if a < b else True
                 self.e_act(e, self.g1, self.e_processing_colour, returning)
 
-                if dist[b] > dist[a] + w:
+                if dist[b-1] > dist[a-1] + w:
                     self.e_act(e, self.g1, self.e_processed_colour, returning)
-                    dist[b] = dist[a] + w
+                    dist[b-1] = dist[a-1] + w
 
                     if not b in self.q:
                         self.q.append(b)
@@ -142,9 +185,10 @@ class SPFA(GraphScene):
 
 class Dijkstra(GraphScene):
     scene_temp_config = {
-        "frame_size": (1000, 800),
-        "frame_width": 5,
-        "frame_height": 4
+        "frame_width": 10,
+        "frame_height": 8,
+        "pixel_width": 1000,
+        "pixel_height": 800
     }
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -163,7 +207,7 @@ class Dijkstra(GraphScene):
                 continue
             seen[a] = True
             self.v_act(a+1, self.g1, self.v_visited_colour)
-            for b, w in self.g1.myedges[a]:
+            for b, w in self.g1.adj[a]:
                 edge = (a+1,b+1) if a < b else (b+1,a+1)
                 returning = False if a < b else True
                 self.e_act(edge, self.g1, self.e_processing_colour, returning)
@@ -178,63 +222,38 @@ class FloydWarshall(BellmanFord):
 
     def algorithm(self, v):
         edges = [
-            [e[0] for e in self.g1.myedges[i]]
+            [e[0] for e in self.g1.adj[i]]
             for i in range(len(self.g1.vertices))
         ]
         distancia = [
             [
                 0 if i == j
-                else self.g1.myedges[i][edges[i].index(j)][1] if j in edges[i]
+                else self.g1.adj[i][edges[i].index(j)][1] if j in edges[i]
                 else inf
                 for j in range(len(self.g1.vertices))
             ] 
             for i in range(len(self.g1.vertices))
         ]
-        paths = [
-            [
-                None if i == j
-                else [j] if distancia[i][j] < inf
-                else None
-                for j in range(len(self.g1.vertices))
-            ]
-            for i in range(len(self.g1.vertices))
-        ]
         for v in range(len(self.g1.vertices)):
-            self.v_act(v+1, self.g1, self.v_processing_colour)
-            self.wait()
             for i in range(len(self.g1.vertices)):
                 for j in range(len(self.g1.vertices)):
-                    if i != j and i != v and j != v:
-                        path_ij = copy(paths[i][j])
-                        path_iv = copy(paths[i][v])
-                        path_vj = copy(paths[v][j])
-                        if path_iv and path_vj:
-                            path_v = copy(paths[i][v] + paths[v][j])
-                        else:
-                            path_v = None
-                        print(path_ij, path_v)
-                        print(i, j, v)
-                        self.es_act(i, path_ij, self.g1, self.e_processing_colour)
-                        self.es_act(i, path_v, self.g1, self.e_visited_colour)
+                    self.v_act(v+1, self.g1, self.v_processing_colour)
+                    self.v_act(i+1, self.g1, self.v_visited_colour)
+                    self.v_act(j+1, self.g1, self.v_visited_colour)
+                    self.wait()
+                    if distancia[i][v] + distancia[v][j] < distancia[i][j]:
+                        distancia[i][j] = distancia[i][v] + distancia[v][j]
+                        self.v_act(v+1, self.g1, self.v_processed_colour)
                         self.wait(0.5)
-                        if distancia[i][v] + distancia[v][j] < distancia[i][j]:
-                            distancia[i][j] = copy(distancia[i][v] + distancia[v][j])
-                            paths[i][j] = copy(path_v)
-                        self.es_act(i, paths[i][j], self.g1, self.e_processed_colour)
+                        self.v_act(v+1, self.g1, self.v_processing_colour)
+                    else:
+                        self.v_act(i+1, self.g1, self.v_processed_colour)
+                        self.v_act(j+1, self.g1, self.v_processed_colour)
                         self.wait(0.5)
-                        self.es_act(i, path_ij, self.g1, config.background_color.invert())
-                        self.es_act(i, path_v, self.g1, config.background_color.invert())
-                    elif i == v:
-                        pass
-                    elif j == v:
-                        pass
-                    else:           #Vertexs iguals
-                        pass
-
-            self.wait()
-            self.v_act(v+1, self.g1, config.background_color.invert())
-            for path in paths:
-                print(path)
+                        self.v_act(i+1, self.g1, self.v_visited_colour)
+                    self.v_act(j+1, self.g1, config.background_color.invert())
+                    self.v_act(i+1, self.g1, config.background_color.invert())
+                    self.v_act(v+1, self.g1, config.background_color.invert())
     
     def es_act(
         self, v: int, path: list[int], graph: myGraph | myDiGraph, colour: ManimColor
@@ -251,6 +270,13 @@ class FloydWarshall(BellmanFord):
 
 if __name__ == "__main__":
     name_prefix = "alg"
-    to_render = [DFS, BFS, BellmanFord, SPFA, Dijkstra, FloydWarshall]
+    to_render = [
+        # DFS,
+        BFS, 
+        # BellmanFord,
+        # SPFA, 
+        # Dijkstra, 
+        # FloydWarshall
+    ]
 
     render_all(to_render, name_prefix)

@@ -16,8 +16,8 @@ from math import sin, cos, pi
 class Graph1(GraphScene): # Graph example
     def construct(self):
         g1 = myGraph(
-            vertices=[i for i in range(7)],
-            edges=[[j for j in range(7)] for _ in range(7)]
+            vertices=[i+1 for i in range(7)],
+            edges=[[j+1 for j in range(7)] for _ in range(7)]
         )
 
         self.add(g1)
@@ -26,8 +26,8 @@ class Graph1(GraphScene): # Graph example
 class Graph2(GraphScene): # Graph example
     def construct(self):
         g1 = myGraph(
-            vertices=[i for i in range(5)],
-            edges=[[i] for i in range(1,5)]
+            vertices=[i+1 for i in range(5)],
+            edges=[[i+1] for i in range(1,5)]
         )
 
         self.add(g1)
@@ -43,10 +43,10 @@ class Graph3(GraphScene): # Subgraph example
 
     def construct(self):
         g1 = myGraph(
-            vertices=[i for i in range(6)],
+            vertices=[i+1 for i in range(6)],
             edges=[[2,3],[2,4],[0,1,3],[0,2,4],[1,3]]
         )
-        subg1 = g1.subgraph([i for i in range(4)])
+        subg1 = g1.subgraph([i+1 for i in range(4)])
 
         g1.move_to([-3, 0, 0])
         subg1.move_to([3, 0, 0])
@@ -56,8 +56,8 @@ class Graph3(GraphScene): # Subgraph example
 class Graph4(GraphScene): # Loop example
     def construct(self):
         g1 = myGraph(
-            vertices=[i for i in range(5)],
-            edges=[[i,i+1] for i in range(4)] + [[4]]
+            vertices=[i+1 for i in range(5)],
+            edges=[[i+1,i+2] for i in range(4)] + [[5]]
         )
         """centers = [
             Vector()
@@ -95,8 +95,8 @@ class Graph6(GraphScene): # Isomorphism example
 
     def construct(self):
         g1 = myGraph(
-            vertices=[i for i in range(4)],
-            edges=[[j for j in range(i+1,4)] for i in range(4)]
+            vertices=[i+1 for i in range(4)],
+            edges=[[j+1 for j in range(i+1,4)] for i in range(4)]
         )
         g2 = g1.subgraph(g1.myvertices)
         
@@ -113,8 +113,8 @@ class Graph6(GraphScene): # Isomorphism example
 class Graph7(GraphScene): # Weighted graph example
     def construct(self):
         g1 = myGraph(
-            vertices=[i for i in range(6)],
-            edges=[[(i+1, i+1)] for i in range(5)],
+            vertices=[i+1 for i in range(6)],
+            edges=[[(i+1, i+1)] for i in range(1,6)],
             edge_type=WeightedLine,
         )
 
@@ -124,8 +124,8 @@ class Graph7(GraphScene): # Weighted graph example
 class Graph8(GraphScene): # Directed graph example
     def construct(self):
         g1 = myDiGraph(
-            vertices=[i for i in range(10)],
-            edges=[[(i+1)%10, (i+4)%10] for i in range(10)]
+            vertices=[i+1 for i in range(10)],
+            edges=[[(i+1)%10, (i+4)%10] for i in range(1,11)]
         )
 
         self.add(g1)
