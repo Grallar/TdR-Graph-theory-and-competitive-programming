@@ -16,14 +16,9 @@ class DFS(GraphScene):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.seen = [False] * len(self.g1.vertices)
-        self.tree = myGraph(vertices=[1], edges=[], layout="tree", root_vertex=1)
-        self.g1.move_to([-3,0,0])
-        self.tree.move_to([3,0,0])
     
     def construct(self):
-        self.play(Create(self.g1))#, Create(self.tree)) 
-        # ^ No funciona, peta l'animació d'arestes de g1, per què? 
-        # Ara faré la resta (BFS, etc. ) amb les llistes
+        self.play(Create(self.g1))
         self.algorithm(1)
         self.wait(1)
 
@@ -38,8 +33,6 @@ class DFS(GraphScene):
             self.wait()
             self.e_act(edge, self.g1, self.e_visited_colour)
             self.v_act(v, self.g1, self.v_visited_colour)
-            #self.tree.add_vertices(u)
-            #self.tree.add_edges(edge)
             self.algorithm(u)
             self.e_act(
                 edge, self.g1, self.e_processed_colour, True
@@ -52,25 +45,8 @@ class BFS(GraphScene):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.seen = [False] * len(self.g1.vertices)
-        #self.seen_mobject = always_redraw(lambda: Tex(f"{self.seen}").move_to([2.5,-0.5,0]))
         self.q = []
-        #self.q_mobject = always_redraw(lambda: Tex(f"{self.q}").move_to([2.5,0.5,0]))
-        self.table = always_redraw(
-            lambda: Table(
-                [["T" if boolean else "F" for boolean in self.seen]],
-                row_labels=[Tex("Visited").scale(0.5)],
-                col_labels=[Tex(i).scale(0.5) for i in self.g1.vertices],
-                include_outer_lines=True,
-                element_to_mobject=
-                ).move_to([1,0,0])
-        )
-        self.g1.move_to([-2.5,0,0])
     
-    def construct(self):
-        self.play(Create(self.g1), Create(self.table))
-        self.algorithm(1)
-        self.wait(1)
-
     def algorithm(self, v):
         self.q.append(v)
         self.seen[v-1] = True
@@ -93,19 +69,11 @@ class BFS(GraphScene):
 
 
 class BellmanFord(GraphScene):
-    scene_temp_config = {
-        "frame_width": 10,
-        "frame_height": 8,
-        "pixel_width": 1000,
-        "pixel_height": 800
-    }
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.g1 = self.wg1
-        self.g1.move_to([-2, 0, 0])
     
     def algorithm(self, v):
-        # MUST ALSO PUT THE LIST OF DISTANCES, MAYBE UNDER? SHOULD BE SEEN, SO ERPVQPUWEBVUQIWBEPNQUWECRQPWCQUINECQONWUEROQNWCRPOQW
         dist = [inf] * len(self.g1.vertices)
         dist[v] = 0
         edges = [
@@ -145,20 +113,12 @@ class BellmanFord(GraphScene):
 
 
 class SPFA(GraphScene):
-    scene_temp_config = {
-        "frame_width": 10,
-        "frame_height": 8,
-        "pixel_width": 1000,
-        "pixel_height": 800
-    }
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.g1 = self.wg1
-        self.g1.move_to([-2, 0, 0])
         self.q = []
     
     def algorithm(self, v):
-        # MUST ALSO PUT THE LIST OF DISTANCES, MAYBE UNDER? SHOULD BE SEEN, SO ERPVQPUWEBVUQIWBEPNQUWECRQPWCQUINECQONWUEROQNWCRPOQW
         dist = [inf] * len(self.g1.vertices)
         dist[v-1] = 0
         self.q.append(v)
@@ -167,9 +127,9 @@ class SPFA(GraphScene):
             a = self.q.pop(0)
             self.v_act(a, self.g1, self.v_processing_colour)
 
-            for b, w in self.g1.adj[a]:
+            for b, w in self.g1.adj[a-1]:
                 e = (a, b) if a < b else (b, a)
-                returning = False if a < b else True
+                returning = a > b 
                 self.e_act(e, self.g1, self.e_processing_colour, returning)
 
                 if dist[b-1] > dist[a-1] + w:
@@ -180,46 +140,38 @@ class SPFA(GraphScene):
                         self.q.append(b)
                 
                 self.e_act(e, self.g1, self.e_visited_colour, returning)
-            self.v_act(a+1, self.g1, self.v_visited_colour)
+            self.v_act(a, self.g1, self.v_visited_colour)
 
 
 class Dijkstra(GraphScene):
-    scene_temp_config = {
-        "frame_width": 10,
-        "frame_height": 8,
-        "pixel_width": 1000,
-        "pixel_height": 800
-    }
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.g1 = self.wg1
-        self.g1.move_to([-2, 0, 0])
         self.q = PriorityQueue()
 
     def algorithm(self, v):
         seen = [False] * len(self.g1.vertices)
         distancia = [inf] * len(self.g1.vertices)
-        distancia[v] = 0
-        self.q.put((distancia[v], v))
-        while  self.q.qsize() != 0:
+        distancia[v-1] = 0
+        self.q.put((distancia[v-1], v))
+        while self.q.qsize() != 0:
             a = self.q.get()[1]
-            if seen[a]:
+            if seen[a-1]:
                 continue
-            seen[a] = True
-            self.v_act(a+1, self.g1, self.v_visited_colour)
-            for b, w in self.g1.adj[a]:
-                edge = (a+1,b+1) if a < b else (b+1,a+1)
-                returning = False if a < b else True
+            seen[a-1] = True
+            self.v_act(a, self.g1, self.v_visited_colour)
+            for b, w in self.g1.adj[a-1]:
+                edge = (a,b) if a < b else (b,a)
+                returning = a > b
                 self.e_act(edge, self.g1, self.e_processing_colour, returning)
-                if distancia[a] + w < distancia[b]:
+                if distancia[a-1] + w < distancia[b-1]:
                     self.e_act(edge, self.g1, self.e_processed_colour, returning)
-                    distancia[b] = distancia[a] + w
-                    self.q.put((distancia[b], b))
+                    distancia[b-1] = distancia[a-1] + w
+                    self.q.put((distancia[b-1], b))
                 self.e_act(edge, self.g1, self.e_visited_colour, returning)
 
 
 class FloydWarshall(BellmanFord):
-
     def algorithm(self, v):
         edges = [
             [e[0] for e in self.g1.adj[i]]
@@ -228,31 +180,31 @@ class FloydWarshall(BellmanFord):
         distancia = [
             [
                 0 if i == j
-                else self.g1.adj[i][edges[i].index(j)][1] if j in edges[i]
+                else self.g1.adj[i][edges[i].index(j+1)][1] if j+1 in edges[i]
                 else inf
                 for j in range(len(self.g1.vertices))
             ] 
             for i in range(len(self.g1.vertices))
         ]
-        for v in range(len(self.g1.vertices)):
-            for i in range(len(self.g1.vertices)):
-                for j in range(len(self.g1.vertices)):
-                    self.v_act(v+1, self.g1, self.v_processing_colour)
-                    self.v_act(i+1, self.g1, self.v_visited_colour)
-                    self.v_act(j+1, self.g1, self.v_visited_colour)
+        for v in self.g1.vertices:
+            for i in self.g1.vertices:
+                for j in self.g1.vertices:
+                    self.v_act(v, self.g1, self.v_processing_colour)
+                    self.v_act(i, self.g1, self.v_visited_colour)
+                    self.v_act(j, self.g1, self.v_visited_colour)
                     self.wait()
-                    if distancia[i][v] + distancia[v][j] < distancia[i][j]:
-                        distancia[i][j] = distancia[i][v] + distancia[v][j]
-                        self.v_act(v+1, self.g1, self.v_processed_colour)
+                    if distancia[i-1][v-1] + distancia[v-1][j-1] < distancia[i-1][j-1]:
+                        distancia[i-1][j-1] = distancia[i-1][v-1] + distancia[v-1][j-1]
+                        self.v_act(v, self.g1, self.v_processed_colour)
                         self.wait(0.5)
-                        self.v_act(v+1, self.g1, self.v_processing_colour)
+                        self.v_act(v, self.g1, self.v_processing_colour)
                     else:
-                        self.v_act(i+1, self.g1, self.v_processed_colour)
-                        self.v_act(j+1, self.g1, self.v_processed_colour)
+                        self.v_act(i, self.g1, self.v_processed_colour)
+                        self.v_act(j, self.g1, self.v_processed_colour)
                         self.wait(0.5)
-                        self.v_act(i+1, self.g1, self.v_visited_colour)
-                    self.v_act(j+1, self.g1, config.background_color.invert())
-                    self.v_act(i+1, self.g1, config.background_color.invert())
+                        self.v_act(i, self.g1, self.v_visited_colour)
+                    self.v_act(j, self.g1, config.background_color.invert())
+                    self.v_act(i, self.g1, config.background_color.invert())
                     self.v_act(v+1, self.g1, config.background_color.invert())
     
     def es_act(
@@ -271,12 +223,12 @@ class FloydWarshall(BellmanFord):
 if __name__ == "__main__":
     name_prefix = "alg"
     to_render = [
-        # DFS,
-        BFS, 
-        # BellmanFord,
-        # SPFA, 
-        # Dijkstra, 
-        # FloydWarshall
+        (DFS, "DFS"),
+        (BFS, "BFS"), 
+        (BellmanFord, "BellmanFord"),
+        (SPFA, "SPFA"), 
+        (Dijkstra, "Dijkstra"), 
+        (FloydWarshall, "FloydWarshall")
     ]
 
     render_all(to_render, name_prefix)
