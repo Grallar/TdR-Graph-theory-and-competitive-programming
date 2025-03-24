@@ -15,6 +15,7 @@ from manim.constants import DEFAULT_FONT_SIZE, ITALIC, SMALL_BUFF
 from manim.mobject.graph import DiGraph, Graph
 from manim.mobject.geometry.line import Line
 from manim.mobject.geometry.arc import Dot
+from manim.mobject.table import Table
 from manim.mobject.text.text_mobject import Text
 from manim.scene.scene import Scene
 from manim.utils.color import ManimColor, RED, BLUE, GREEN
@@ -415,14 +416,23 @@ class myDiGraph(DiGraph):
 
 
 def render_all(
-    graphs: list[type[GraphScene]],
+    graphs: list[type[GraphScene]]|list[tuple[type[GraphScene],str]],
     name_prefix: str
 ) -> Literal[True] | None:
     for i in range(len(graphs)):
-        graph: GraphScene = graphs[i]
+        graph: GraphScene
+        output_file: str
+        if isinstance(graphs[i], tuple) and issubclass(graphs[i][0], GraphScene):
+            graph = graphs[i][0]
+            output_file = graphs[i][1]
+        elif issubclass(graphs[i], GraphScene):
+            graph = graphs[i]
+            output_file =  "g" + name_prefix + "_" + str(i)
+        else:
+            continue 
         with tempconfig(
             {
-                "output_file": "g" + name_prefix + "_" + str(i),
+                "output_file": output_file,
                 **graph.scene_temp_config
             }
         ):
