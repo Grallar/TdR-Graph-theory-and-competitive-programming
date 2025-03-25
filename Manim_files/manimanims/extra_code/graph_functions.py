@@ -417,7 +417,8 @@ class myDiGraph(DiGraph):
 
 def render_all(
     graphs: list[type[GraphScene]]|list[tuple[type[GraphScene],str]],
-    name_prefix: str
+    name_prefix: str,
+    format: str
 ) -> Literal[True] | None:
     for i in range(len(graphs)):
         graph: GraphScene
@@ -433,6 +434,7 @@ def render_all(
         with tempconfig(
             {
                 "output_file": output_file,
+                "format": format,
                 **graph.scene_temp_config
             }
         ):

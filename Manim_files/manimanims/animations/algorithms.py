@@ -65,7 +65,6 @@ class BFS(GraphScene):
                 self.q.append(b)
             self.wait(0.5)
             self.v_act(a, self.g1, self.v_processed_colour)
-            print(self.q)
 
 
 class BellmanFord(GraphScene):
@@ -205,7 +204,7 @@ class FloydWarshall(BellmanFord):
                         self.v_act(i, self.g1, self.v_visited_colour)
                     self.v_act(j, self.g1, config.background_color.invert())
                     self.v_act(i, self.g1, config.background_color.invert())
-                    self.v_act(v+1, self.g1, config.background_color.invert())
+                    self.v_act(v, self.g1, config.background_color.invert())
     
     def es_act(
         self, v: int, path: list[int], graph: myGraph | myDiGraph, colour: ManimColor
@@ -222,6 +221,7 @@ class FloydWarshall(BellmanFord):
 
 if __name__ == "__main__":
     name_prefix = "alg"
+    vid_formats = ["mp4", "gif"]
     to_render = [
         (DFS, "DFS"),
         (BFS, "BFS"), 
@@ -231,4 +231,5 @@ if __name__ == "__main__":
         (FloydWarshall, "FloydWarshall")
     ]
 
-    render_all(to_render, name_prefix)
+    for vid_format in vid_formats:
+        render_all(to_render, name_prefix, vid_format)
